@@ -10,6 +10,7 @@ from torchvision import transforms
 from torch.utils.data.dataloader import DataLoader
 from utils import increment_mean_and_var, load_model
 from sklearn.metrics import roc_curve, auc
+import os
 
 
 def parse_arguments():
@@ -27,6 +28,7 @@ def parse_arguments():
     parser.add_argument('--gpus', type=int, default=(1 if torch.cuda.is_available() else 0))
     parser.add_argument('--batch_size', type=int, default=1)
     parser.add_argument('--num_workers', type=int, default=4)
+    parser.add_argument('--save_fig', action='store_true')
 
     args = parser.parse_args()
     return args
@@ -99,7 +101,7 @@ def get_score_map(inputs, teacher, students, params):
     return score_map
 
 
-def visualize(img, gt, score_map, max_score):
+def visualize(img, gt, score_map, max_score, save, idx):
     plt.figure(figsize=(13, 3))
     plt.subplot(1, 3, 1)
     plt.imshow(img)
@@ -117,6 +119,15 @@ def visualize(img, gt, score_map, max_score):
     plt.title('Anomaly map')
 
     plt.clim(0, max_score)
+
+    if save:
+        name = 'result_%02d.png' % idx
+        folder = 'figs'
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+        full = os.path.join(folder, name)
+        plt.savefig(full)
+
     plt.show(block=True)
 
 
@@ -200,7 +211,9 @@ def detect_anomaly(args):
                 visualize(img_in[b, :, :, :].squeeze(), 
                           gt_in[b, :, :, :].squeeze(), 
                           score_map[b, :, :].squeeze(), 
-                          max_score)
+                          max_score,
+                          args.save_fig,
+                          i)
     
     # AUC ROC
     fpr, tpr, thresholds = roc_curve(y_true.astype(int), y_score)
@@ -212,6 +225,9 @@ def detect_anomaly(args):
     plt.ylabel('TPR')
     plt.legend()
     plt.grid()
+    if args.save_fig:
+        name = 'ROC_AUC.png'
+        plt.savefig(name)
     plt.show()
 
 
